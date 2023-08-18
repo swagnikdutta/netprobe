@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
-	"github.com/swagnikdutta/netprobe/pkg/pinger"
+	"github.com/swagnikdutta/netprobe/pkg/ping"
 )
 
 func NewNetProbeCommand() *cobra.Command {
@@ -19,13 +19,7 @@ in-depth networking knowledge`,
 		Version: "1.0.0",
 		Args:    cobra.ExactArgs(1),
 		Example: "netprobe google.com",
-		Run: func(cmd *cobra.Command, args []string) {
-			host := args[0]
-			p := new(pinger.ProbingPinger)
-			err := p.Ping(host)
-			// TODO: Decide the troubleshooting flow
-			_ = err
-		},
+		Run:     Start,
 	}
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, strings []string) {
@@ -33,6 +27,15 @@ in-depth networking knowledge`,
 	})
 
 	return cmd
+}
+
+// Start starts the network troubleshooting steps
+func Start(cmd *cobra.Command, args []string) {
+	host := args[0]
+	pinger := ping.NewPinger()
+	if err := pinger.Ping(host); err != nil {
+		log.Printf("error pinging host: %v", err)
+	}
 }
 
 func main() {
