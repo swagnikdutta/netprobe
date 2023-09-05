@@ -18,92 +18,12 @@ var (
 	ICMPHeaderSubtype  uint8 = 0
 )
 
-func (h *ICMPHeader) Serialize() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := binary.Write(buf, binary.BigEndian, h.Type); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.Code); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.Checksum); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.Identifier); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.SequenceNumber); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-func (p *ICMPPacket) Serialize() ([]byte, error) {
-	return p.Header.Serialize()
-}
-
-func (h *IPv4Header) Serialize() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.BigEndian, h.Version); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.IHL); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.TypeOfService); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.TotalLength); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.Identification); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.Flags); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.FragmentOffset); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.TTL); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.Protocol); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.Checksum); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.SourceIP); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.DestinationIP); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
-func (p *IPv4Packet) Serialize() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	payloadSerialized, err := p.Payload.Serialize()
-	if err != nil {
-		return nil, errors.Wrapf(err, "error serializing ICMP packet")
-	}
-
-	buf.Write(payloadSerialized)
-
-	headerSerialized, err := p.Header.Serialize()
-	if err != nil {
-		return nil, errors.Wrapf(err, "error serializing IPv4 packet header")
-	}
-
-	buf.Write(headerSerialized)
-
-	return buf.Bytes(), nil
+type Pinger struct {
+	sourceIP net.IP
+	destIP   net.IP
+	count    uint8
+	resolver AddressResolver
+	dialer   NetworkDialer
 }
 
 func (pinger *Pinger) createICMPPacket(seqNo int) (*ICMPPacket, error) {
@@ -160,7 +80,7 @@ func (pinger *Pinger) createIPv4Packet(count int) (*IPv4Packet, error) {
 }
 
 func (pinger *Pinger) resolveAddress(dest string) error {
-	ips, err := net.LookupIP(dest)
+	ips, err := pinger.resolver.LookupIP(dest)
 	if err != nil {
 		return errors.Wrapf(err, "error resolving address of remote host")
 	}
@@ -171,9 +91,7 @@ func (pinger *Pinger) resolveAddress(dest string) error {
 		}
 	}
 
-	// The destination address does not need to exist as unlike tcp, udp does not require a handshake.
-	// The goal here is to retrieve the outbound IP. Source: https://stackoverflow.com/a/37382208/3728336
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+	conn, err := pinger.dialer.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		return errors.Wrapf(err, "error resolving outbound ip address of local machine")
 	}
@@ -240,8 +158,11 @@ func (pinger *Pinger) Ping(host string) error {
 }
 
 func NewPinger() *Pinger {
-	pinger := new(Pinger)
-	pinger.count = 3
+	pinger := &Pinger{
+		count:    3,
+		resolver: new(LocalResolver),
+		dialer:   new(UDPDialer),
+	}
 
 	return pinger
 }
