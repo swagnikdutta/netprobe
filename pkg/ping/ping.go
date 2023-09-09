@@ -23,7 +23,6 @@ type Pinger struct {
 	destIP   net.IP
 	count    uint8
 	resolver AddressResolver
-	dialer   NetworkDialer
 }
 
 func (pinger *Pinger) createICMPPacket(seqNo int) (*ICMPPacket, error) {
@@ -79,29 +78,6 @@ func (pinger *Pinger) createIPv4Packet(count int) (*IPv4Packet, error) {
 	return ipPacket, nil
 }
 
-func (pinger *Pinger) resolveAddress(dest string) error {
-	ips, err := pinger.resolver.LookupIP(dest)
-	if err != nil {
-		return errors.Wrapf(err, "error resolving address of remote host")
-	}
-
-	for _, ip := range ips {
-		if ipv4 := ip.To4(); ipv4 != nil {
-			pinger.destIP = ipv4
-		}
-	}
-
-	conn, err := pinger.dialer.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return errors.Wrapf(err, "error resolving outbound ip address of local machine")
-	}
-	defer conn.Close()
-
-	pinger.sourceIP = conn.LocalAddr().(*net.UDPAddr).IP
-
-	return nil
-}
-
 func (pinger *Pinger) parseEchoReply(echoReply []byte, echoRequest *IPv4Packet) {
 	icmpOffset := 20
 	icmpHeaderSize := 8
@@ -115,9 +91,17 @@ func (pinger *Pinger) parseEchoReply(echoReply []byte, echoRequest *IPv4Packet) 
 func (pinger *Pinger) Ping(host string) error {
 	log.Printf("Performing ping tests...\n\n")
 
-	if err := pinger.resolveAddress(host); err != nil {
-		return errors.Wrapf(err, "error resolving source/destination addresses")
+	ip, err := pinger.resolver.ResolveSource()
+	if err != nil {
+		return errors.Wrapf(err, "error resolving source address")
 	}
+	pinger.sourceIP = ip
+
+	ip, err = pinger.resolver.ResolveDestination(host)
+	if err != nil {
+		return errors.Wrapf(err, "error resolving destination address")
+	}
+	pinger.destIP = ip
 
 	for i := 0; i < int(pinger.count); i++ {
 		packet, err := pinger.createIPv4Packet(i)
@@ -161,7 +145,6 @@ func NewPinger() *Pinger {
 	pinger := &Pinger{
 		count:    3,
 		resolver: new(LocalResolver),
-		dialer:   new(UDPDialer),
 	}
 
 	return pinger
