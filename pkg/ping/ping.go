@@ -8,6 +8,9 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
+	"github.com/swagnikdutta/netprobe/pkg/dialer"
+	"github.com/swagnikdutta/netprobe/pkg/resolver/local"
+	"github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
 )
 
 var (
@@ -22,8 +25,8 @@ type Pinger struct {
 	sourceIP net.IP
 	destIP   net.IP
 	count    uint8
-	resolver AddressResolver
-	dialer   NetworkDialer
+	resolver local.Resolver
+	dialer   dialer.NetworkDialer
 }
 
 func (pinger *Pinger) createICMPPacket(seqNo int) (*ICMPPacket, error) {
@@ -145,9 +148,18 @@ func (pinger *Pinger) Ping(host string) error {
 func NewPinger() *Pinger {
 	pinger := &Pinger{
 		count:    3,
-		resolver: new(LocalResolver),
-		dialer:   new(Dialer),
+		resolver: new(local.LocalResolver),
+		dialer:   new(dialer.Dialer),
 	}
 
+	return pinger
+}
+
+func NewPingerWithNativeDNSResolver() *Pinger {
+	pinger := &Pinger{
+		count:    3,
+		resolver: new(native_dns.Resolver),
+		dialer:   new(dialer.Dialer),
+	}
 	return pinger
 }

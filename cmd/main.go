@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 
 	"github.com/spf13/cobra"
 	"github.com/swagnikdutta/netprobe/pkg/ping"
+	"github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
 )
 
 func NewNetProbeCommand() *cobra.Command {
@@ -19,7 +21,7 @@ in-depth networking knowledge`,
 		Version: "1.0.0",
 		Args:    cobra.ExactArgs(1),
 		Example: "netprobe google.com",
-		Run:     Start,
+		Run:     StartV2,
 	}
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, strings []string) {
@@ -27,6 +29,13 @@ in-depth networking knowledge`,
 	})
 
 	return cmd
+}
+
+func StartV2(cmd *cobra.Command, args []string) {
+	resolver := new(native_dns.Resolver)
+	resolver.Nameserver = net.IP{198, 41, 0, 4}
+	host := "www.northeastern.edu"
+	resolver.ResolveDestination(host)
 }
 
 // Start starts the network troubleshooting steps
