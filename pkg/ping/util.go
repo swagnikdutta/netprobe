@@ -21,11 +21,3 @@ func calculateChecksum(data []byte) uint16 {
 	checksum := ^sum
 	return uint16(checksum)
 }
-
-// func (pinger *Pinger) printSerializedData(b []byte, name string) {
-// 	fmt.Printf("%s bytes (hex)\n", name)
-// 	for i := 0; i < len(b); i++ {
-// 		fmt.Printf("%02x ", b[i])
-// 	}
-// 	fmt.Printf("\n\n")
-// }

@@ -1,10 +1,10 @@
-package ping
+package local
 
 import (
 	"net"
 )
 
-type AddressResolver interface {
+type Resolver interface {
 	ResolveSource() (net.IP, error)
 	ResolveDestination(dest string) (net.IP, error)
 }

@@ -6,7 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	ping "github.com/swagnikdutta/netprobe/pkg/ping/mocks"
+	dialer "github.com/swagnikdutta/netprobe/pkg/dialer/mocks"
+	local "github.com/swagnikdutta/netprobe/pkg/resolver/local/mocks"
 	"go.uber.org/mock/gomock"
 )
 
@@ -39,8 +40,8 @@ func TestPing_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := ping.NewMockAddressResolver(ctrl)
-	mockDialer := ping.NewMockNetworkDialer(ctrl)
+	mockResolver := local.NewMockResolver(ctrl)
+	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 	mockConn := new(MockConn)
 
 	host := "test-host.com"
@@ -66,8 +67,8 @@ func TestPing_SourceAddressResolutionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := ping.NewMockAddressResolver(ctrl)
-	mockDialer := ping.NewMockNetworkDialer(ctrl)
+	mockResolver := local.NewMockResolver(ctrl)
+	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 
 	host := "test-host.com"
 	addrNotFoundErr := errors.New("source-not-found")
@@ -89,8 +90,8 @@ func TestPing_DestinationAddressResolutionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := ping.NewMockAddressResolver(ctrl)
-	mockDialer := ping.NewMockNetworkDialer(ctrl)
+	mockResolver := local.NewMockResolver(ctrl)
+	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 
 	host := "test-host.com"
 	fakeSourceIP := net.IP{127, 0, 0, 1}
@@ -114,8 +115,8 @@ func TestPing_DialErrorOnLastPacket(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := ping.NewMockAddressResolver(ctrl)
-	mockDialer := ping.NewMockNetworkDialer(ctrl)
+	mockResolver := local.NewMockResolver(ctrl)
+	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 	mockConn := new(MockConn)
 
 	host := "test-host.com"
