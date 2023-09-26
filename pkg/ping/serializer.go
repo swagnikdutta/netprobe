@@ -9,7 +9,7 @@ import (
 )
 
 type Serializer interface {
-	Serialize() *bytes.Buffer
+	Serialize() ([]byte, error)
 }
 
 // ICMPHeader represents the header of an ICMP (Internet Control Message Protocol) packet.

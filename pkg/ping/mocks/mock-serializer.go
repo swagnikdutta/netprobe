@@ -5,7 +5,6 @@
 package ping
 
 import (
-	bytes "bytes"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -35,11 +34,12 @@ func (m *MockSerializer) EXPECT() *MockSerializerMockRecorder {
 }
 
 // Serialize mocks base method.
-func (m *MockSerializer) Serialize() *bytes.Buffer {
+func (m *MockSerializer) Serialize() ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Serialize")
-	ret0, _ := ret[0].(*bytes.Buffer)
-	return ret0
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Serialize indicates an expected call of Serialize.
