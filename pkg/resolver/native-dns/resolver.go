@@ -1,12 +1,10 @@
 package native_dns
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 
 	"github.com/pkg/errors"
-	"github.com/swagnikdutta/netprobe/pkg"
 	"github.com/swagnikdutta/netprobe/pkg/dialer"
 )
 
@@ -21,6 +19,10 @@ type Resolver struct {
 	Nameserver net.IP
 
 	Dialer dialer.Dialer
+
+	Meta struct {
+		TxnIDMap map[uint16]interface{}
+	}
 }
 
 func (r *Resolver) ResolveSource() (net.IP, error) {
@@ -33,44 +35,55 @@ func (r *Resolver) ResolveDestination(host string) (net.IP, error) {
 		return nil, err
 	}
 
-	_ = destIP
-	return nil, nil
+	return destIP, nil
 }
 
 func (r *Resolver) Resolve(host string) (net.IP, error) {
-	for true {
+	for {
 		reply, err := r.Query(host)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error querying with host %s", host)
+			return nil, errors.Wrapf(err, "error querying host %s", host)
 		}
 
-		fmt.Println(reply)
-		// ip = get_answer(reply)
-		// if ip {
-		// 	// done
-		// }
-		//
-		// nameserverIP = get_glue(reply)
-		// if nameseverIp {
-		// 	// we get the ip address of the nameserver to ask next
-		// 	r.Nameserver = nameseverip
-		// } else {
-		// 	// we get the domain name of the name server to ask next
-		// 	return
-		// }
-		break
+		m := NewDNSMessage()
+		m.Deserialize(reply)
+
+		if answer, has := m.hasAnswer(); has {
+			if answer.Type == 1 {
+				return net.ParseIP(answer.RDATA), nil
+			}
+
+			// handles CNAME records
+			// if answer.Type == 5 {
+			// 	nameserverDomain := answer.RDATA
+			// 	ip, _ := r.Resolve(nameserverDomain)
+			// 	r.Nameserver = ip
+			// 	continue
+			// }
+		}
+
+		if glueRecord, has := m.hasGlueRecord(); has {
+			r.Nameserver = net.ParseIP(glueRecord.RDATA)
+			continue
+		}
+
+		if nsRecord, has := m.hasNSRecord(); has {
+			nameserverDomain := nsRecord.RDATA
+			ip, _ := r.Resolve(nameserverDomain)
+			r.Nameserver = ip
+		}
 	}
+
 	return nil, nil
 }
 
 func (r *Resolver) Query(host string) ([]byte, error) {
-	message := NewDNSMessage(host)
+	txnID := r.generateTxnID()
+	message := NewDNSQuery(host, txnID)
 	stream, err := message.Serialize()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error serializing resolver message")
 	}
-
-	pkg.PrintByteStream("dns message", stream)
 
 	address := fmt.Sprintf("%s:%s", r.Nameserver.String(), "53")
 	conn, err := r.Dialer.Dial("udp", address)
@@ -90,9 +103,7 @@ func (r *Resolver) Query(host string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "error reading reply")
 	}
-	reply = bytes.Trim(reply, "\x00")
 
-	pkg.PrintByteStream("dns reply", reply)
-
+	// reply = bytes.Trim(reply, "\x00") // header id (16-bits) 00 83
 	return reply, nil
 }

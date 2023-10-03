@@ -3,14 +3,27 @@ package native_dns
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 	"strings"
-
-	"github.com/swagnikdutta/netprobe/pkg"
 )
 
 var (
 	typeA     uint16 = 1
 	classINET uint16 = 1
+
+	flagInfo = map[string]struct {
+		offset uint8
+		mask   uint16
+	}{
+		"QR":     {15, 0x8000},
+		"Opcode": {11, 0x7800},
+		"AA":     {10, 0x0400},
+		"TC":     {9, 0x0200},
+		"RD":     {8, 0x0100},
+		"RA":     {7, 0x0080},
+		"Z":      {6, 0x0070},
+		"RCODE":  {3, 0x000f},
+	}
 )
 
 type RRType uint16
@@ -20,12 +33,22 @@ type RRClass uint16
 // domain protocol are carried out. It is divided into five
 // sections as shown below.
 type Message struct {
-	// Header is a 12 byte field
+	// Header section includes fields that specify which of the remaining sections
+	// are present, and also specify whether the message is a query or a response,
+	// a standard query or some other opcode, etc.
 	Header *Header
 
-	Question   *Question
-	Answer     *Answer
-	Authority  *Authority
+	// Question section contains fields that describe a question to a name server
+	Question *Question
+
+	// Answer section contains RRs that answer the question
+	Answer *Answer
+
+	// Authority section contains RRs that point toward an authoritative name server
+	Authority *Authority
+
+	// Additional records section contains RRs which relate to the query,
+	// but are not strictly answers for the question.
 	Additional *Additional
 }
 
@@ -43,13 +66,59 @@ func (m *Message) Serialize() ([]byte, error) {
 
 	headerSerialized, _ := m.Header.Serialize()
 	questionSerialized, _ := m.Question.Serialize()
-
-	pkg.PrintByteStream("message header section", headerSerialized)
-	pkg.PrintByteStream("message question section", questionSerialized)
 	buf.Write(headerSerialized)
 	buf.Write(questionSerialized)
 
 	return buf.Bytes(), nil
+}
+
+func (m *Message) Deserialize(stream []byte) {
+	m.Header.Deserialize(stream)
+
+	offset := uint16(12)
+	if m.Header.QDCOUNT != 0 {
+		m.Question.Deserialize(stream, &offset)
+	}
+	if m.Header.ANCOUNT != 0 {
+		m.Answer.Deserialize(stream, &offset, m.Header.ANCOUNT)
+	}
+	if m.Header.NSCOUNT != 0 {
+		m.Authority.Deserialize(stream, &offset, m.Header.NSCOUNT)
+	}
+	if m.Header.ARCOUNT != 0 {
+		m.Additional.Deserialize(stream, &offset, m.Header.ARCOUNT)
+	}
+}
+
+func (m *Message) hasAnswer() (*ResourceRecord, bool) {
+	if m.Header.ANCOUNT == 0 {
+		return nil, false
+	}
+
+	return m.Answer.Records[0], true
+}
+
+func (m *Message) hasGlueRecord() (*ResourceRecord, bool) {
+	if m.Header.ARCOUNT == 0 {
+		return nil, false
+	}
+
+	var glue *ResourceRecord
+	for i := 0; i < int(m.Header.ARCOUNT); i++ {
+		if m.Additional.Records[i].Type == 1 {
+			glue = m.Additional.Records[i]
+		}
+	}
+
+	return glue, true
+}
+
+func (m *Message) hasNSRecord() (*ResourceRecord, bool) {
+	if m.Header.NSCOUNT == 0 {
+		return nil, false
+	}
+
+	return m.Authority.Records[0], true
 }
 
 // Header section includes fields that specify which of the remaining
@@ -168,6 +237,38 @@ func (h *Header) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func (h *Header) Deserialize(stream []byte) {
+	h.ID = binary.BigEndian.Uint16(stream[:2])
+
+	flags := binary.BigEndian.Uint16(stream[2:4])
+	for flagName, info := range flagInfo {
+		value := (flags & info.mask) >> info.offset
+		switch flagName {
+		case "QR":
+			h.QR = uint8(value)
+		case "Opcode":
+			h.Opcode = uint8(value)
+		case "AA":
+			h.AA = uint8(value)
+		case "TC":
+			h.TC = uint8(value)
+		case "RD":
+			h.RD = uint8(value)
+		case "RA":
+			h.RA = uint8(value)
+		case "Z":
+			h.Z = uint8(value)
+		case "RCODE":
+			h.RCODE = uint8(value)
+		}
+	}
+
+	h.QDCOUNT = binary.BigEndian.Uint16(stream[4:6])
+	h.ANCOUNT = binary.BigEndian.Uint16(stream[6:8])
+	h.NSCOUNT = binary.BigEndian.Uint16(stream[8:10])
+	h.ARCOUNT = binary.BigEndian.Uint16(stream[10:12])
+}
+
 // Question is the question for the name server. It contains
 // fields(query type, query class and query domain name) that
 // describe the question
@@ -201,7 +302,7 @@ func (q *Question) Serialize() ([]byte, error) {
 		buf.WriteByte(byte(octetLength))
 
 		for _, c := range subdomain {
-			// here c is of type int32
+			// here c is a rune (alias for int32)
 			// convert into byte and append to buffer
 			buf.WriteByte(byte(c))
 		}
@@ -219,16 +320,53 @@ func (q *Question) Serialize() ([]byte, error) {
 	return serialized, nil
 }
 
+func (q *Question) Deserialize(stream []byte, offset *uint16) {
+	q.QName = readVariableLengthField(stream, offset)
+
+	q.QType = RRType(binary.BigEndian.Uint16(stream[*offset : *offset+2]))
+	*offset += 2
+
+	q.QClass = RRClass(binary.BigEndian.Uint16(stream[*offset : *offset+2]))
+	*offset += 2
+}
+
 type Answer struct {
-	Records []ResourceRecord
+	Records []*ResourceRecord
+}
+
+func (a *Answer) Deserialize(stream []byte, offset *uint16, ancount uint16) {
+	a.Records = make([]*ResourceRecord, ancount)
+
+	for i := 0; i < int(ancount); i++ {
+		a.Records[i] = new(ResourceRecord)
+		a.Records[i].Deserialize(stream, offset)
+	}
 }
 
 type Authority struct {
-	Records []ResourceRecord
+	Records []*ResourceRecord
+}
+
+func (a *Authority) Deserialize(stream []byte, offset *uint16, nscount uint16) {
+	a.Records = make([]*ResourceRecord, nscount)
+
+	for i := 0; i < int(nscount); i++ {
+		a.Records[i] = new(ResourceRecord)
+		a.Records[i].Deserialize(stream, offset)
+	}
 }
 
 type Additional struct {
-	Records []ResourceRecord
+	Records []*ResourceRecord
+}
+
+func (a *Additional) Deserialize(stream []byte, offset *uint16, arcount uint16) {
+	a.Records = make([]*ResourceRecord, arcount)
+
+	for i := 0; i < int(arcount); i++ {
+		a.Records[i] = new(ResourceRecord)
+		a.Records[i].Deserialize(stream, offset)
+	}
 }
 
 type ResourceRecord struct {
@@ -253,25 +391,58 @@ type ResourceRecord struct {
 
 	// a variable length string of octets that describes the
 	// resource. The format of this information varies according
-	// to the TYPE and CLASS of the resource record.
-	RDATA []byte
+	// to the TYPE and CLASS of the resource record. For example,
+	// if the TYPE is A and the CLASS is IN, the RDATA field
+	// is a 4 octet ARPA Internet address.
+	RDATA string
 }
 
-func NewDNSMessage(host string) *Message {
+func (rr *ResourceRecord) Deserialize(stream []byte, offset *uint16) {
+	rr.Name = readVariableLengthField(stream, offset)
+	rr.Type = RRType(binary.BigEndian.Uint16(stream[*offset : *offset+2]))
+	*offset += 2
+
+	rr.Class = RRClass(binary.BigEndian.Uint16(stream[*offset : *offset+2]))
+	*offset += 2
+
+	rr.TTL = binary.BigEndian.Uint16(stream[*offset : *offset+4])
+	*offset += 4
+
+	rr.RDLENGTH = binary.BigEndian.Uint16(stream[*offset : *offset+2])
+	*offset += 2
+
+	if rr.Type == 1 || rr.Type == 28 {
+		// 1 for A, 28 for AAAA
+		rr.RDATA = net.IP(stream[*offset : *offset+rr.RDLENGTH]).String()
+		*offset += rr.RDLENGTH
+	} else if rr.Type == 2 || rr.Type == 5 {
+		// 2 for NS, 5 for CNAME
+		rr.RDATA = readVariableLengthField(stream, offset)
+	}
+}
+
+func NewDNSMessage() *Message {
 	message := &Message{
-		Header: &Header{
-			ID:      1, // use a better identifier
-			QR:      0, // 0 for query
-			Opcode:  0, // 0 for standard query
-			RD:      1,
-			QDCOUNT: 1, // One question follows
-		},
-		Question: &Question{
-			QName:  host,
-			QType:  RRType(typeA),
-			QClass: RRClass(classINET),
-		},
+		Header:     &Header{},
+		Question:   &Question{},
+		Answer:     &Answer{},
+		Authority:  &Authority{},
+		Additional: &Additional{},
 	}
 
 	return message
+}
+
+func NewDNSQuery(host string, txnID uint16) *Message {
+	query := NewDNSMessage()
+
+	query.Header.ID = txnID
+	query.Header.RD = 1
+	query.Header.QDCOUNT = 1
+
+	query.Question.QName = host
+	query.Question.QType = RRType(typeA)
+	query.Question.QClass = RRClass(classINET)
+
+	return query
 }
