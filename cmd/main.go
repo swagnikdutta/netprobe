@@ -33,9 +33,12 @@ in-depth networking knowledge`,
 
 func StartV2(cmd *cobra.Command, args []string) {
 	resolver := new(native_dns.Resolver)
+	resolver.Meta.TxnIDMap = make(map[uint16]interface{})
 	resolver.Nameserver = net.IP{198, 41, 0, 4}
-	host := "www.northeastern.edu"
-	resolver.ResolveDestination(host)
+
+	host := "www.example.com"
+	ip, _ := resolver.ResolveDestination(host)
+	fmt.Printf("IP address of %s is: %s", host, ip.String())
 }
 
 // Start starts the network troubleshooting steps
