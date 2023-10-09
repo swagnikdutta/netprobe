@@ -10,13 +10,13 @@ import (
 
 // Resolver is a native implementation of a dns resolver
 type Resolver struct {
-	// Nameserver will store the IP of a root nameserver.
+	// RootNameServer will store the IP of a root nameserver.
 	// There are 13 root nameserver IPs, which are hard-coded into
 	// the resolver.
 	//
 	// In this implementation we will use the address of
 	// a.root-servers.net name server i.e, 198.41.0.4
-	Nameserver net.IP
+	RootNameServer net.IP
 
 	Dialer dialer.Dialer
 
@@ -39,8 +39,10 @@ func (r *Resolver) ResolveDestination(host string) (net.IP, error) {
 }
 
 func (r *Resolver) Resolve(host string) (net.IP, error) {
+	nameserver := r.RootNameServer.String()
+
 	for {
-		reply, err := r.Query(host)
+		reply, err := r.Query(host, nameserver)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error querying host %s", host)
 		}
@@ -50,6 +52,7 @@ func (r *Resolver) Resolve(host string) (net.IP, error) {
 
 		if answer, has := m.hasAnswer(); has {
 			if answer.Type == 1 {
+				fmt.Printf("Answer record found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
 				return net.ParseIP(answer.RDATA), nil
 			}
 
@@ -57,27 +60,30 @@ func (r *Resolver) Resolve(host string) (net.IP, error) {
 			// if answer.Type == 5 {
 			// 	nameserverDomain := answer.RDATA
 			// 	ip, _ := r.Resolve(nameserverDomain)
-			// 	r.Nameserver = ip
+			// 	nameserver = ip
 			// 	continue
 			// }
 		}
 
 		if glueRecord, has := m.hasGlueRecord(); has {
-			r.Nameserver = net.ParseIP(glueRecord.RDATA)
+			nameserver = glueRecord.RDATA
+			fmt.Printf("Glue record found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", glueRecord.Name, glueRecord.RDATA)
 			continue
 		}
 
 		if nsRecord, has := m.hasNSRecord(); has {
 			nameserverDomain := nsRecord.RDATA
+			fmt.Printf("NS record found\nnameserver:\t\t\t%s\n\n", nsRecord.RDATA)
 			ip, _ := r.Resolve(nameserverDomain)
-			r.Nameserver = ip
+			nameserver = ip.String()
 		}
 	}
 
 	return nil, nil
 }
 
-func (r *Resolver) Query(host string) ([]byte, error) {
+func (r *Resolver) Query(host, nameserver string) ([]byte, error) {
+	fmt.Printf("Querying nameserver %s for host: %s\n\n", nameserver, host)
 	txnID := r.generateTxnID()
 	message := NewDNSQuery(host, txnID)
 	stream, err := message.Serialize()
@@ -85,10 +91,10 @@ func (r *Resolver) Query(host string) ([]byte, error) {
 		return nil, errors.Wrapf(err, "error serializing resolver message")
 	}
 
-	address := fmt.Sprintf("%s:%s", r.Nameserver.String(), "53")
+	address := fmt.Sprintf("%s:%s", nameserver, "53")
 	conn, err := r.Dialer.Dial("udp", address)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error dialing DNS server %s", r.Nameserver.String())
+		return nil, errors.Wrapf(err, "Error dialing DNS server %s", nameserver)
 	}
 	defer conn.Close()
 
@@ -96,7 +102,6 @@ func (r *Resolver) Query(host string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "error sending message on connection")
 	}
-	fmt.Printf("Sent resolver message with id: %v\n", message.Header.ID)
 
 	reply := make([]byte, 2056)
 	_, err = conn.Read(reply)
