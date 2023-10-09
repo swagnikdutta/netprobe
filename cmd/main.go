@@ -34,7 +34,7 @@ in-depth networking knowledge`,
 func StartV2(cmd *cobra.Command, args []string) {
 	resolver := new(native_dns.Resolver)
 	resolver.Meta.TxnIDMap = make(map[uint16]interface{})
-	resolver.Nameserver = net.IP{198, 41, 0, 4}
+	resolver.RootNameServer = net.IP{198, 41, 0, 4}
 
 	host := "www.example.com"
 	ip, _ := resolver.ResolveDestination(host)
