@@ -4,14 +4,9 @@ import (
 	"net"
 )
 
-type Resolver interface {
-	ResolveSource() (net.IP, error)
-	ResolveDestination(dest string) (net.IP, error)
-}
+type Resolver struct{}
 
-type LocalResolver struct{}
-
-func (r *LocalResolver) ResolveSource() (net.IP, error) {
+func (r *Resolver) ResolveSource() (net.IP, error) {
 	// The address does not need to exist as unlike tcp, udp does not require a handshake.
 	// The goal here is to retrieve the outbound IP.
 	// Source: https://stackoverflow.com/a/37382208/3728336
@@ -26,7 +21,7 @@ func (r *LocalResolver) ResolveSource() (net.IP, error) {
 	return sourceIP, nil
 }
 
-func (r *LocalResolver) ResolveDestination(dest string) (net.IP, error) {
+func (r *Resolver) ResolveDestination(dest string) (net.IP, error) {
 	var destIP net.IP
 
 	ips, err := net.LookupIP(dest)

@@ -26,7 +26,17 @@ type Resolver struct {
 }
 
 func (r *Resolver) ResolveSource() (net.IP, error) {
-	return nil, nil
+	// The address does not need to exist as unlike tcp, udp does not require a handshake.
+	// The goal here is to retrieve the outbound IP.
+	// Source: https://stackoverflow.com/a/37382208/3728336
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return nil, errors.Wrapf(err, "error resolving outbound ip address")
+	}
+	defer conn.Close()
+
+	sourceIP := conn.LocalAddr().(*net.UDPAddr).IP
+	return sourceIP, nil
 }
 
 func (r *Resolver) ResolveDestination(host string) (net.IP, error) {
@@ -52,17 +62,16 @@ func (r *Resolver) Resolve(host string) (net.IP, error) {
 
 		if answer, has := m.hasAnswer(); has {
 			if answer.Type == 1 {
-				fmt.Printf("Answer record found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
+				fmt.Printf("Answer record (type A) found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
 				return net.ParseIP(answer.RDATA), nil
 			}
 
 			// handles CNAME records
-			// if answer.Type == 5 {
-			// 	nameserverDomain := answer.RDATA
-			// 	ip, _ := r.Resolve(nameserverDomain)
-			// 	nameserver = ip
-			// 	continue
-			// }
+			if answer.Type == 5 {
+				fmt.Printf("Answer record (type CNAME) found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
+				nameserverDomain := answer.RDATA
+				return r.Resolve(nameserverDomain)
+			}
 		}
 
 		if glueRecord, has := m.hasGlueRecord(); has {
@@ -74,12 +83,18 @@ func (r *Resolver) Resolve(host string) (net.IP, error) {
 		if nsRecord, has := m.hasNSRecord(); has {
 			nameserverDomain := nsRecord.RDATA
 			fmt.Printf("NS record found\nnameserver:\t\t\t%s\n\n", nsRecord.RDATA)
-			ip, _ := r.Resolve(nameserverDomain)
-			nameserver = ip.String()
-		}
-	}
 
-	return nil, nil
+			ip, err := r.Resolve(nameserverDomain)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error resolving domain: %s", nameserverDomain)
+			}
+
+			nameserver = ip.String()
+			continue
+		}
+
+		return nil, errors.Errorf("Failed to resolve address of host: %s\n", host)
+	}
 }
 
 func (r *Resolver) Query(host, nameserver string) ([]byte, error) {
@@ -109,6 +124,5 @@ func (r *Resolver) Query(host, nameserver string) ([]byte, error) {
 		return nil, errors.Wrapf(err, "error reading reply")
 	}
 
-	// reply = bytes.Trim(reply, "\x00") // header id (16-bits) 00 83
 	return reply, nil
 }
