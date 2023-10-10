@@ -9,8 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/swagnikdutta/netprobe/pkg/dialer"
-	"github.com/swagnikdutta/netprobe/pkg/resolver/local"
-	"github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
+	"github.com/swagnikdutta/netprobe/pkg/resolver"
+	native_dns "github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
 )
 
 var (
@@ -25,7 +25,7 @@ type Pinger struct {
 	sourceIP net.IP
 	destIP   net.IP
 	count    uint8
-	resolver local.Resolver
+	resolver resolver.Resolver
 	dialer   dialer.NetworkDialer
 }
 
@@ -45,7 +45,6 @@ func (pinger *Pinger) createICMPPacket(seqNo int) (*ICMPPacket, error) {
 		return nil, errors.Wrapf(err, "error serializing ICMP packet")
 	}
 
-	// pinger.printSerializedData(packetSerialized, "IP payload/ICMP packet")
 	packet.Header.Checksum = calculateChecksum(packetSerialized)
 
 	return packet, nil
@@ -76,7 +75,6 @@ func (pinger *Pinger) createIPv4Packet(count int) (*IPv4Packet, error) {
 		return nil, errors.Wrapf(err, "error serializing IPv4 packet header")
 	}
 
-	// pinger.printSerializedData(packetHeaderSerialized, "IP header")
 	ipPacket.Header.Checksum = calculateChecksum(packetHeaderSerialized)
 
 	return ipPacket, nil
@@ -93,8 +91,6 @@ func (pinger *Pinger) parseEchoReply(echoReply []byte, echoRequest *IPv4Packet) 
 }
 
 func (pinger *Pinger) Ping(host string) error {
-	log.Printf("Performing ping tests...\n\n")
-
 	ip, err := pinger.resolver.ResolveSource()
 	if err != nil {
 		return errors.Wrapf(err, "error resolving source address")
@@ -106,6 +102,8 @@ func (pinger *Pinger) Ping(host string) error {
 		return errors.Wrapf(err, "error resolving destination address")
 	}
 	pinger.destIP = ip
+
+	fmt.Printf("Host IP address resolved. Performing ping tests...\n\n")
 
 	for i := 0; i < int(pinger.count); i++ {
 		packet, err := pinger.createIPv4Packet(i)
@@ -146,20 +144,17 @@ func (pinger *Pinger) Ping(host string) error {
 }
 
 func NewPinger() *Pinger {
+	// resolver := new(local.Resolver)
+	// or
+	resolver := new(native_dns.Resolver)
+	resolver.Meta.TxnIDMap = make(map[uint16]interface{})
+	resolver.RootNameServer = net.IP{198, 41, 0, 4}
+
 	pinger := &Pinger{
 		count:    3,
-		resolver: new(local.LocalResolver),
+		resolver: resolver,
 		dialer:   new(dialer.Dialer),
 	}
 
-	return pinger
-}
-
-func NewPingerWithNativeDNSResolver() *Pinger {
-	pinger := &Pinger{
-		count:    3,
-		resolver: new(native_dns.Resolver),
-		dialer:   new(dialer.Dialer),
-	}
 	return pinger
 }

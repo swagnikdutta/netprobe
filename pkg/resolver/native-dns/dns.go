@@ -107,10 +107,11 @@ func (m *Message) hasGlueRecord() (*ResourceRecord, bool) {
 	for i := 0; i < int(m.Header.ARCOUNT); i++ {
 		if m.Additional.Records[i].Type == 1 {
 			glue = m.Additional.Records[i]
+			return glue, true
 		}
 	}
 
-	return glue, true
+	return nil, false
 }
 
 func (m *Message) hasNSRecord() (*ResourceRecord, bool) {
@@ -118,7 +119,17 @@ func (m *Message) hasNSRecord() (*ResourceRecord, bool) {
 		return nil, false
 	}
 
-	return m.Authority.Records[0], true
+	var ns *ResourceRecord
+	for i := 0; i < int(m.Header.NSCOUNT); i++ {
+		// sometimes authority section can have SOA (type 6) records. This has
+		// been the case for domains that doesn't exist eg: abcd.com
+		if m.Authority.Records[i].Type == 2 {
+			ns = m.Authority.Records[i]
+			return ns, true
+		}
+	}
+
+	return nil, false
 }
 
 // Header section includes fields that specify which of the remaining
@@ -203,19 +214,25 @@ func (h *Header) Serialize() ([]byte, error) {
 	}
 
 	headerFlags := uint16(0)
-	flagOffset := map[uint]uint16{
-		15: uint16(h.QR),
-		11: uint16(h.Opcode),
-		10: uint16(h.AA),
-		9:  uint16(h.TC),
-		8:  uint16(h.RD),
-		7:  uint16(h.RA),
-		6:  uint16(h.Z),
-		3:  uint16(h.RCODE),
-	}
-
-	for offset, flagValue := range flagOffset {
-		headerFlags |= flagValue << offset
+	for flagName, info := range flagInfo {
+		switch flagName {
+		case "QR":
+			headerFlags |= uint16(h.QR) << info.offset
+		case "Opcode":
+			headerFlags |= uint16(h.QR) << info.offset
+		case "AA":
+			headerFlags |= uint16(h.QR) << info.offset
+		case "TC":
+			headerFlags |= uint16(h.QR) << info.offset
+		case "RD":
+			headerFlags |= uint16(h.QR) << info.offset
+		case "RA":
+			headerFlags |= uint16(h.QR) << info.offset
+		case "Z":
+			headerFlags |= uint16(h.QR) << info.offset
+		case "RCODE":
+			headerFlags |= uint16(h.QR) << info.offset
+		}
 	}
 
 	if err := binary.Write(buf, binary.BigEndian, headerFlags); err != nil {

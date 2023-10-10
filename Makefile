@@ -4,7 +4,7 @@ build:
 	/usr/local/go/bin/go build -o /Users/swagnikdutta/go/netprobe/${BINARY_NAME} github.com/swagnikdutta/netprobe/cmd #gosetup
 
 run: build
-	./${BINARY_NAME} www.google.com
+	./${BINARY_NAME} www.example.com
 	make clean
 
 clean:

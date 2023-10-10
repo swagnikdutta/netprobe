@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 
 	"github.com/spf13/cobra"
 	"github.com/swagnikdutta/netprobe/pkg/ping"
-	"github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
 )
 
 func NewNetProbeCommand() *cobra.Command {
@@ -21,7 +19,7 @@ in-depth networking knowledge`,
 		Version: "1.0.0",
 		Args:    cobra.ExactArgs(1),
 		Example: "netprobe google.com",
-		Run:     StartV2,
+		Run:     Start,
 	}
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, strings []string) {
@@ -29,16 +27,6 @@ in-depth networking knowledge`,
 	})
 
 	return cmd
-}
-
-func StartV2(cmd *cobra.Command, args []string) {
-	resolver := new(native_dns.Resolver)
-	resolver.Meta.TxnIDMap = make(map[uint16]interface{})
-	resolver.RootNameServer = net.IP{198, 41, 0, 4}
-
-	host := "www.example.com"
-	ip, _ := resolver.ResolveDestination(host)
-	fmt.Printf("IP address of %s is: %s", host, ip.String())
 }
 
 // Start starts the network troubleshooting steps
