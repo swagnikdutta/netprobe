@@ -8,10 +8,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Serializer interface {
-	Serialize() ([]byte, error)
-}
-
 // ICMPHeader represents the header of an ICMP (Internet Control Message Protocol) packet.
 // It contains fields for the ICMP message type, code, checksum, identifier, and sequence number.
 type ICMPHeader struct {

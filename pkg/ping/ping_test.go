@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	dialer "github.com/swagnikdutta/netprobe/pkg/dialer/mocks"
-	local "github.com/swagnikdutta/netprobe/pkg/resolver/local/mocks"
+	resolver "github.com/swagnikdutta/netprobe/pkg/resolver/mocks"
 	"go.uber.org/mock/gomock"
 )
 
@@ -40,7 +40,7 @@ func TestPing_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := local.NewMockResolver(ctrl)
+	mockResolver := resolver.NewMockResolver(ctrl)
 	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 	mockConn := new(MockConn)
 
@@ -67,7 +67,7 @@ func TestPing_SourceAddressResolutionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := local.NewMockResolver(ctrl)
+	mockResolver := resolver.NewMockResolver(ctrl)
 	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 
 	host := "test-host.com"
@@ -90,7 +90,7 @@ func TestPing_DestinationAddressResolutionError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := local.NewMockResolver(ctrl)
+	mockResolver := resolver.NewMockResolver(ctrl)
 	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 
 	host := "test-host.com"
@@ -115,7 +115,7 @@ func TestPing_DialErrorOnLastPacket(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockResolver := local.NewMockResolver(ctrl)
+	mockResolver := resolver.NewMockResolver(ctrl)
 	mockDialer := dialer.NewMockNetworkDialer(ctrl)
 	mockConn := new(MockConn)
 
