@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/swagnikdutta/netprobe/pkg/dialer"
 )
 
@@ -125,4 +126,24 @@ func (r *Resolver) Query(host, nameserver string) ([]byte, error) {
 	}
 
 	return reply, nil
+}
+
+func NewDigCommand() *cobra.Command {
+	digCmd := &cobra.Command{
+		Use:   "dig example.com",
+		Short: "resolve IP address of host",
+		Long:  "The dig command uses the native resolver to resolve IP address of host",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			host := args[0]
+			r := new(Resolver)
+			r.Meta.TxnIDMap = make(map[uint16]interface{})
+			r.RootNameServer = net.IP{198, 41, 0, 4}
+
+			ip, _ := r.Resolve(host)
+			fmt.Printf("IP address of %s is: %s\n", host, ip.String())
+		},
+	}
+
+	return digCmd
 }

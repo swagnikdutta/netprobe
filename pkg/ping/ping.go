@@ -8,8 +8,10 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"github.com/swagnikdutta/netprobe/pkg/dialer"
 	"github.com/swagnikdutta/netprobe/pkg/resolver"
+	"github.com/swagnikdutta/netprobe/pkg/resolver/local"
 	native_dns "github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
 )
 
@@ -19,6 +21,9 @@ var (
 	IPv4IHL            uint8 = 5
 	ICMPHeaderType     uint8 = 8
 	ICMPHeaderSubtype  uint8 = 0
+
+	resolverType string
+	pingCount    int
 )
 
 type Pinger struct {
@@ -144,17 +149,44 @@ func (pinger *Pinger) Ping(host string) error {
 }
 
 func NewPinger() *Pinger {
-	// resolver := new(local.Resolver)
-	// or
-	resolver := new(native_dns.Resolver)
-	resolver.Meta.TxnIDMap = make(map[uint16]interface{})
-	resolver.RootNameServer = net.IP{198, 41, 0, 4}
-
 	pinger := &Pinger{
-		count:    3,
-		resolver: resolver,
-		dialer:   new(dialer.Dialer),
+		count:  uint8(pingCount),
+		dialer: new(dialer.Dialer),
+	}
+
+	switch resolverType {
+	case "native":
+		r := new(native_dns.Resolver)
+		r.Meta.TxnIDMap = make(map[uint16]interface{})
+		r.RootNameServer = net.IP{198, 41, 0, 4}
+
+		pinger.resolver = r
+	case "local":
+		pinger.resolver = new(local.Resolver)
 	}
 
 	return pinger
+}
+
+func NewPingCommand() *cobra.Command {
+	pingCmd := &cobra.Command{
+		Use:   "ping example.com",
+		Short: "send ICMP ECHO_REQUEST packets to network host",
+		Long:  "The ping utility is used to test connection with a host by sending ICMP echo request packets",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			host := args[0]
+			pinger := NewPinger()
+
+			if err := pinger.Ping(host); err != nil {
+				log.Printf("error pinging host: %v", err)
+			}
+		},
+	}
+
+	pingCmd.Flags().IntVarP(&pingCount, "count", "c", 3, "specify number of packets to send")
+	pingCmd.Flags().StringVarP(&resolverType, "resolver", "r", "native",
+		`dns resolver to use, choices are "native" or "local"`)
+
+	return pingCmd
 }
