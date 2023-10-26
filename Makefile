@@ -1,15 +1,10 @@
-BINARY_NAME=netprobe
+BINARY_NAME=npctl
 
 build:
-	/usr/local/go/bin/go build -o /Users/swagnikdutta/go/netprobe/${BINARY_NAME} github.com/swagnikdutta/netprobe/cmd #gosetup
+	/usr/local/go/bin/go build -o /usr/local/go/bin/${BINARY_NAME} github.com/swagnikdutta/netprobe/cmd #gosetup
 
 run: build
-	./${BINARY_NAME} www.example.com
-	make clean
-
-clean:
-	go clean
-	rm ./${BINARY_NAME}
+	/usr/local/go/bin/${BINARY_NAME} www.example.com
 
 test_ping:
 	/usr/local/go/bin/go test -count=1 ./pkg/ping
