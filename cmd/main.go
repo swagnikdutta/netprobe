@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
+	_ "github.com/swagnikdutta/netprobe/pkg/protocols/tcp"
 	"github.com/swagnikdutta/netprobe/pkg/utilities/dig"
 	"github.com/swagnikdutta/netprobe/pkg/utilities/ping"
 )

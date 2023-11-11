@@ -14,10 +14,13 @@ type Header struct {
 	Flags          uint8
 	FragmentOffset uint16
 	TTL            uint8
-	Protocol       uint8
-	Checksum       uint16
-	SourceIP       net.IP
-	DestinationIP  net.IP
+	// Protocol specifies the protocol used in the encapsulated segment(payload) of the packet. It tells the receiving
+	// system how to interpret and process the packet data. For example, 6 indicates that the encapsulated segment is a
+	// TCP segment. Likewise, 1 for ICMP, 17 for UDP
+	Protocol      uint8
+	Checksum      uint16
+	SourceIP      net.IP
+	DestinationIP net.IP
 }
 
 // Packet represents an IPv4 packet.

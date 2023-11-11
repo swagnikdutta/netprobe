@@ -23,7 +23,7 @@ func (p *Packet) Serialize() ([]byte, error) {
 	buf.Write(p.Payload)
 	headerSerialized, err := p.Header.Serialize()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error serializing IPv4 packet header")
+		return nil, errors.Wrapf(err, "error serializing ip packet header")
 	}
 	buf.Write(headerSerialized)
 
