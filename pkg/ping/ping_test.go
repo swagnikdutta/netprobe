@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	dialer "github.com/swagnikdutta/netprobe/pkg/dialer/mocks"
-	resolver "github.com/swagnikdutta/netprobe/pkg/resolver/mocks"
+	resolver "github.com/swagnikdutta/netprobe/pkg/dns/mocks"
 	"go.uber.org/mock/gomock"
 )
 

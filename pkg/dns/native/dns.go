@@ -1,4 +1,4 @@
-package native_dns
+package native
 
 import (
 	"bytes"
@@ -52,13 +52,13 @@ type Message struct {
 	Additional *Additional
 }
 
-// Serialize serializes the structured resolver message into a stream of
+// Serialize serializes the structured dns message into a stream of
 // bytes that can be sent over the network.
 //
 // Serialization of a DNS packet is non-trivial. It has to be done
 // according to DNS protocol standards.
 //  1. use network byte order (big-endian)
-//  2. ensure domain names in the QNAME field are encoded as per resolver
+//  2. ensure domain names in the QNAME field are encoded as per dns
 //     compression rules where domain names are represented as a sequence of
 //     labels and pointers.
 func (m *Message) Serialize() ([]byte, error) {
@@ -187,7 +187,7 @@ type Header struct {
 
 	// QDCOUNT is a 16-bit integer that specifies number of entries
 	// in the question section.
-	// An entry refers to a resolver query or question. A resolver client can
+	// An entry refers to a dns query or question. A dns client can
 	// include one or more entries in the question section to request
 	// information about multiple domain names or resource records
 	// in a single DNS query message.

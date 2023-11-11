@@ -1,4 +1,4 @@
-package native_dns
+package native
 
 import (
 	"math/rand"

@@ -10,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/swagnikdutta/netprobe/pkg/dialer"
-	"github.com/swagnikdutta/netprobe/pkg/resolver"
-	"github.com/swagnikdutta/netprobe/pkg/resolver/local"
-	native_dns "github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
+	"github.com/swagnikdutta/netprobe/pkg/dns"
+	"github.com/swagnikdutta/netprobe/pkg/dns/local"
+	nativedns "github.com/swagnikdutta/netprobe/pkg/dns/native"
 )
 
 var (
@@ -30,7 +30,7 @@ type Pinger struct {
 	sourceIP net.IP
 	destIP   net.IP
 	count    uint8
-	resolver resolver.Resolver
+	resolver dns.Resolver
 	dialer   dialer.NetworkDialer
 }
 
@@ -156,7 +156,7 @@ func NewPinger() *Pinger {
 
 	switch resolverType {
 	case "native":
-		r := new(native_dns.Resolver)
+		r := new(nativedns.Resolver)
 		r.Meta.TxnIDMap = make(map[uint16]interface{})
 		r.RootNameServer = net.IP{198, 41, 0, 4}
 

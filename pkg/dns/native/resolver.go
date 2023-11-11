@@ -1,4 +1,4 @@
-package native_dns
+package native
 
 import (
 	"fmt"
@@ -104,7 +104,7 @@ func (r *Resolver) Query(host, nameserver string) ([]byte, error) {
 	message := NewDNSQuery(host, txnID)
 	stream, err := message.Serialize()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error serializing resolver message")
+		return nil, errors.Wrapf(err, "error serializing dns query")
 	}
 
 	address := fmt.Sprintf("%s:%s", nameserver, "53")
@@ -132,7 +132,7 @@ func NewDigCommand() *cobra.Command {
 	digCmd := &cobra.Command{
 		Use:   "dig example.com",
 		Short: "resolve IP address of host",
-		Long:  "The dig command uses the native resolver to resolve IP address of host",
+		Long:  "The dig command uses the native dns resolver to resolve IP address of host",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			host := args[0]

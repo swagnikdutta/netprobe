@@ -4,8 +4,8 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
+	native_dns "github.com/swagnikdutta/netprobe/pkg/dns/native"
 	"github.com/swagnikdutta/netprobe/pkg/ping"
-	native_dns "github.com/swagnikdutta/netprobe/pkg/resolver/native-dns"
 )
 
 func NewNetProbeCommand() *cobra.Command {
