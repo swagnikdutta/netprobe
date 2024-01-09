@@ -11,11 +11,9 @@ import (
 func NewNetProbeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "npctl",
-		Short: "Network troubleshooting tool",
-		Long: `NetProbe simplifies network troubleshooting for non-experts by providing a user-friendly
-command-line tool. With a single command, users can diagnose connectivity issues, ping hosts, 
-and gather network information, streamlining the troubleshooting process without requiring 
-in-depth networking knowledge`,
+		Short: "network troubleshooting tool",
+		Long: `npctl is a CLI application designed to simplify network troubleshooting 
+through a suite of natively implemented networking tools`,
 		Version: "1.0.0",
 	}
 
