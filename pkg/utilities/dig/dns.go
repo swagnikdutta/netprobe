@@ -1,10 +1,12 @@
-package native_dns
+package dig
 
 import (
 	"bytes"
 	"encoding/binary"
 	"net"
 	"strings"
+
+	"github.com/swagnikdutta/netprobe/pkg/protocols"
 )
 
 var (
@@ -235,19 +237,7 @@ func (h *Header) Serialize() ([]byte, error) {
 		}
 	}
 
-	if err := binary.Write(buf, binary.BigEndian, headerFlags); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.QDCOUNT); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.ANCOUNT); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.NSCOUNT); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, h.ARCOUNT); err != nil {
+	if err := protocols.WriteBinary(buf, headerFlags, h.QDCOUNT, h.ANCOUNT, h.NSCOUNT, h.ARCOUNT); err != nil {
 		return nil, err
 	}
 

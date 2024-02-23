@@ -1,7 +1,8 @@
-package native_dns
+package dig
 
 import (
 	"math/rand"
+	"net"
 	"strings"
 	"time"
 )
@@ -56,4 +57,25 @@ func (r *Resolver) generateTxnID() uint16 {
 
 	r.Meta.TxnIDMap[res] = nil
 	return res
+}
+
+func getNameserverIP() net.IP {
+	nameserverAddress := map[string]net.IP{
+		"a": net.IP{198, 41, 0, 4},
+		"b": net.IP{170, 247, 170, 2},
+		"c": net.IP{192, 33, 4, 12},
+		"d": net.IP{199, 7, 91, 13},
+		"e": net.IP{192, 203, 230, 10},
+		"f": net.IP{192, 5, 5, 241},
+		"g": net.IP{192, 112, 36, 4},
+		"h": net.IP{198, 97, 190, 53},
+		"i": net.IP{192, 36, 148, 17},
+		"j": net.IP{192, 58, 128, 30},
+		"k": net.IP{193, 0, 14, 129},
+		"l": net.IP{199, 7, 83, 42},
+		"m": net.IP{202, 12, 27, 33},
+	}
+	// TODO: Would be great to have a fallback logic if the default nameserver does not respond
+	defaultNameserver := "b"
+	return nameserverAddress[defaultNameserver]
 }
