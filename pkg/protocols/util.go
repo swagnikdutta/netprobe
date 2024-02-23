@@ -1,6 +1,11 @@
-package ping
+package protocols
 
-func calculateChecksum(data []byte) uint16 {
+import (
+	"bytes"
+	"encoding/binary"
+)
+
+func CalculateChecksum(data []byte) uint16 {
 	sum := uint32(0)
 
 	// creating 16 bit words
@@ -20,4 +25,13 @@ func calculateChecksum(data []byte) uint16 {
 	// taking one's compliment
 	checksum := ^sum
 	return uint16(checksum)
+}
+
+func WriteBinary(buf *bytes.Buffer, values ...interface{}) error {
+	for _, value := range values {
+		if err := binary.Write(buf, binary.BigEndian, value); err != nil {
+			return err
+		}
+	}
+	return nil
 }

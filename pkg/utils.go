@@ -1,6 +1,8 @@
 package pkg
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func PrintByteStream(topic string, stream []byte) {
 	fmt.Printf("--------------- %s(hex) --------------\n", topic)

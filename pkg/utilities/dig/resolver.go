@@ -1,4 +1,4 @@
-package native_dns
+package dig
 
 import (
 	"fmt"
@@ -11,19 +11,23 @@ import (
 
 // Resolver is a native implementation of a dns resolver
 type Resolver struct {
-	// RootNameServer will store the IP of a root nameserver.
-	// There are 13 root nameserver IPs, which are hard-coded into
-	// the resolver.
-	//
-	// In this implementation we will use the address of
-	// a.root-servers.net name server i.e, 198.41.0.4
-	RootNameServer net.IP
+	// RootNameserver stores the IP address of the root nameserver.
+	// There are 13 root nameservers in total, all of which are hardcoded in a resolver.
+	RootNameserver net.IP
 
 	Dialer dialer.Dialer
-
-	Meta struct {
+	Logger *Logger
+	Meta   struct {
 		TxnIDMap map[uint16]interface{}
 	}
+}
+
+func NewResolver(v bool) *Resolver {
+	r := new(Resolver)
+	r.RootNameserver = getNameserverIP()
+	r.Logger = &Logger{Verbose: v}
+	r.Meta.TxnIDMap = make(map[uint16]interface{})
+	return r
 }
 
 func (r *Resolver) ResolveSource() (net.IP, error) {
@@ -50,7 +54,7 @@ func (r *Resolver) ResolveDestination(host string) (net.IP, error) {
 }
 
 func (r *Resolver) Resolve(host string) (net.IP, error) {
-	nameserver := r.RootNameServer.String()
+	nameserver := r.RootNameserver.String()
 
 	for {
 		reply, err := r.Query(host, nameserver)
@@ -63,13 +67,13 @@ func (r *Resolver) Resolve(host string) (net.IP, error) {
 
 		if answer, has := m.hasAnswer(); has {
 			if answer.Type == 1 {
-				fmt.Printf("Answer record (type A) found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
+				r.Logger.logV("Answer record (type A) found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
 				return net.ParseIP(answer.RDATA), nil
 			}
 
 			// handles CNAME records
 			if answer.Type == 5 {
-				fmt.Printf("Answer record (type CNAME) found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
+				r.Logger.logV("Answer record (type CNAME) found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", answer.Name, answer.RDATA)
 				nameserverDomain := answer.RDATA
 				return r.Resolve(nameserverDomain)
 			}
@@ -77,13 +81,13 @@ func (r *Resolver) Resolve(host string) (net.IP, error) {
 
 		if glueRecord, has := m.hasGlueRecord(); has {
 			nameserver = glueRecord.RDATA
-			fmt.Printf("Glue record found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", glueRecord.Name, glueRecord.RDATA)
+			r.Logger.logV("Glue record found\nnameserver:\t\t\t%s\naddress:\t\t\t%s\n\n", glueRecord.Name, glueRecord.RDATA)
 			continue
 		}
 
 		if nsRecord, has := m.hasNSRecord(); has {
 			nameserverDomain := nsRecord.RDATA
-			fmt.Printf("NS record found\nnameserver:\t\t\t%s\n\n", nsRecord.RDATA)
+			r.Logger.logV("NS record found\nnameserver:\t\t\t%s\n\n", nsRecord.RDATA)
 
 			ip, err := r.Resolve(nameserverDomain)
 			if err != nil {
@@ -99,7 +103,7 @@ func (r *Resolver) Resolve(host string) (net.IP, error) {
 }
 
 func (r *Resolver) Query(host, nameserver string) ([]byte, error) {
-	fmt.Printf("Querying nameserver %s for host: %s\n\n", nameserver, host)
+	r.Logger.logV("Querying nameserver %s for host: %s\n\n", nameserver, host)
 	txnID := r.generateTxnID()
 	message := NewDNSQuery(host, txnID)
 	stream, err := message.Serialize()
@@ -132,18 +136,22 @@ func NewDigCommand() *cobra.Command {
 	digCmd := &cobra.Command{
 		Use:   "dig example.com",
 		Short: "resolve IP address of host",
-		Long:  "The dig command uses the native resolver to resolve IP address of host",
-		Args:  cobra.ExactArgs(1),
+		Long:  "\nThe dig command uses the native resolver to resolve IP address of host",
+		Args:  cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
 			host := args[0]
-			r := new(Resolver)
-			r.Meta.TxnIDMap = make(map[uint16]interface{})
-			r.RootNameServer = net.IP{198, 41, 0, 4}
 
+			verbose, err := cmd.Flags().GetBool("verbose")
+			if err != nil {
+				cmd.PrintErrln(err)
+			}
+
+			r := NewResolver(verbose)
 			ip, _ := r.Resolve(host)
-			fmt.Printf("IP address of %s is: %s\n", host, ip.String())
+			r.Logger.log("IP address of %s is: %s\n", host, ip.String())
 		},
 	}
+	digCmd.Flags().BoolP("verbose", "v", false, "enable verbose mode to display detailed logs")
 
 	return digCmd
 }
