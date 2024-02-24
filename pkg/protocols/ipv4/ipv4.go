@@ -5,6 +5,15 @@ import (
 	"github.com/swagnikdutta/netprobe/pkg/protocols"
 )
 
+func calculateTotalLength(p *Packet) (*uint16, error) {
+	b, err := p.Serialize()
+	if err != nil {
+		return nil, errors.Wrapf(err, "error serializing ip packet")
+	}
+	length := uint16(len(b))
+	return &length, nil
+}
+
 func CreatePacket(h Header, payload []byte) (*Packet, []byte, error) {
 	p := &Packet{
 		Header: &Header{
@@ -18,18 +27,21 @@ func CreatePacket(h Header, payload []byte) (*Packet, []byte, error) {
 		Payload: payload,
 	}
 
-	// TODO: This needs to be calculated I think. Try once. Otherwise put it in header
-	p.Header.TotalLength = 50
+	length, err := calculateTotalLength(p)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "error calculating total length of packet")
+	}
+	p.Header.TotalLength = *length
 
 	headerSerialized, err := p.Header.Serialize()
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "error serializing IPv4 packet header")
+		return nil, nil, errors.Wrapf(err, "error serializing ip packet header")
 	}
 	p.Header.Checksum = protocols.CalculateChecksum(headerSerialized)
 
 	packetSerialized, err := p.Serialize()
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "error serializing IPv4 packet")
+		return nil, nil, errors.Wrapf(err, "error serializing ip packet")
 	}
 
 	return p, packetSerialized, nil
