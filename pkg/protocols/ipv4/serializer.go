@@ -9,7 +9,10 @@ import (
 
 func (h *Header) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if err := protocols.WriteBinary(buf, h.Version, h.IHL, h.TypeOfService, h.TotalLength, h.Identification, h.Flags, h.FragmentOffset, h.TTL, h.Protocol, h.Checksum, h.SourceIP, h.DestinationIP); err != nil {
+	versionIHL := h.Version<<4 | h.IHL
+	flagsAndOffset := uint16(h.Flags)<<13 | h.FragmentOffset
+
+	if err := protocols.WriteBinary(buf, versionIHL, h.TypeOfService, h.TotalLength, h.Identification, flagsAndOffset, h.TTL, h.Protocol, h.Checksum, h.SourceIP, h.DestinationIP); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
