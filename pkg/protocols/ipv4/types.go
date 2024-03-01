@@ -9,9 +9,12 @@ type Header struct {
 	IHL           uint8
 	TypeOfService uint8
 	// Total Length is the length of the datagram, measured in octets, including internet header and data
-	TotalLength    uint16
+	TotalLength uint16
+	// An identifying value assigned by the sender to aid in assembling the fragments of a datagram.
 	Identification uint16
-	Flags          uint8
+	// Control flags
+	Flags uint8
+	// The field indicates where in the datagram this fragment belongs
 	FragmentOffset uint16
 	TTL            uint8
 	// Protocol specifies the protocol used in the encapsulated segment(payload) of the packet. It tells the receiving

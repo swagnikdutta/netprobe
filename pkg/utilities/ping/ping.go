@@ -64,20 +64,13 @@ func (pinger *Pinger) Ping(host string) error {
 			Code:           HeaderSubtype,
 			SequenceNumber: uint16(i),
 		}
-		icmpPacket, icmpPacketSerialized, err := icmp.CreatePacket(icmpHeader)
+		icmpPacket, icmpSerialized, err := icmp.CreatePacket(icmpHeader)
 		if err != nil {
 			return errors.Wrapf(err, "error creating ICMP packet")
 		}
 
-		ipHeader := ipv4.Header{
-			Version:       Version,
-			IHL:           IHL,
-			TTL:           64,
-			Protocol:      ICMPProtocolNumber,
-			SourceIP:      pinger.sourceIP,
-			DestinationIP: pinger.destIP,
-		}
-		ipPacket, ipPacketSerialized, err := ipv4.CreatePacket(ipHeader, icmpPacketSerialized)
+		ipHeader := ipv4.CreateHeader(Version, IHL, 0, 0, 0, 0, 0, 64, ICMPProtocolNumber, 0, pinger.sourceIP, pinger.destIP)
+		ipPacket, ipSerialized, err := ipv4.CreatePacket(ipHeader, icmpSerialized)
 		if err != nil {
 			return errors.Wrapf(err, "error creating IPv4 packet")
 		}
@@ -88,7 +81,7 @@ func (pinger *Pinger) Ping(host string) error {
 		}
 		defer conn.Close()
 
-		_, err = conn.Write(ipPacketSerialized)
+		_, err = conn.Write(ipSerialized)
 		if err != nil {
 			return errors.Wrapf(err, "error sending ICMP echo request")
 		}

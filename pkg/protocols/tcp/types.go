@@ -92,13 +92,13 @@ type Header struct {
 	//
 	// All options except End of Option List Option (EOLO) and No-Operation (NOP) MUST have length fields, including
 	// all future options.
-	Options []Option
+	Options []*Option
 }
 
 type Option struct {
-	kind   byte
-	length byte
-	value  []byte
+	kind   uint8
+	length uint8
+	value  uint16
 }
 
 type PseudoHeader struct {
