@@ -59,12 +59,14 @@ func (pinger *Pinger) Ping(host string) error {
 	fmt.Printf("\nAddress resolution complete\nHost address: \t\t%v\nDestination address: \t%v\n\nPerforming ping tests...\n\n", pinger.sourceIP, pinger.destIP)
 
 	for i := 0; i < int(pinger.count); i++ {
-		icmpHeader := icmp.Header{
-			Type:           HeaderType,
-			Code:           HeaderSubtype,
-			SequenceNumber: uint16(i),
-		}
-		icmpPacket, icmpPacketSerialized, err := icmp.CreatePacket(icmpHeader)
+		seqNo := uint16(i)
+		icmpPacket, icmpSerialized, err := icmp.CreatePacket(
+			HeaderType,
+			HeaderSubtype,
+			0,
+			0,
+			seqNo,
+		)
 		if err != nil {
 			return errors.Wrapf(err, "error creating ICMP packet")
 		}
@@ -77,7 +79,7 @@ func (pinger *Pinger) Ping(host string) error {
 			SourceIP:      pinger.sourceIP,
 			DestinationIP: pinger.destIP,
 		}
-		ipPacket, ipPacketSerialized, err := ipv4.CreatePacket(ipHeader, icmpPacketSerialized)
+		ipPacket, ipPacketSerialized, err := ipv4.CreatePacket(ipHeader, icmpSerialized)
 		if err != nil {
 			return errors.Wrapf(err, "error creating IPv4 packet")
 		}

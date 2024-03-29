@@ -5,14 +5,20 @@ import (
 	"github.com/swagnikdutta/netprobe/pkg/protocols"
 )
 
-func CreatePacket(h Header) (*Packet, []byte, error) {
+func CreatePacket(
+	hType,
+	code uint8,
+	checksum,
+	id,
+	seq uint16,
+) (*Packet, []byte, error) {
 	p := &Packet{
 		Header: &Header{
-			Type:           h.Type,
-			Code:           h.Code,
-			Checksum:       h.Checksum,
-			Identifier:     h.Identifier,
-			SequenceNumber: h.SequenceNumber,
+			Type:           hType,
+			Code:           code,
+			Checksum:       checksum,
+			Identifier:     id,
+			SequenceNumber: seq,
 		},
 	}
 
