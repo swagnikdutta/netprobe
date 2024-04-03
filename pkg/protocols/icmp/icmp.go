@@ -11,6 +11,7 @@ func CreatePacket(
 	checksum,
 	id,
 	seq uint16,
+	data []byte,
 ) (*Packet, []byte, error) {
 	p := &Packet{
 		Header: &Header{
@@ -20,15 +21,16 @@ func CreatePacket(
 			Identifier:     id,
 			SequenceNumber: seq,
 		},
+		Payload: data,
 	}
-
-	headerSerialized, err := p.Header.Serialize()
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "error serializing ICMP packet header")
-	}
-	p.Header.Checksum = protocols.CalculateChecksum(headerSerialized)
 
 	packetSerialized, err := p.Serialize()
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "error serializing ICMP packet")
+	}
+	p.Header.Checksum = protocols.CalculateChecksum(packetSerialized)
+
+	packetSerialized, err = p.Serialize()
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "error serializing ICMP packet")
 	}
