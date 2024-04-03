@@ -6,15 +6,15 @@ import (
 )
 
 func CalculateChecksum(data []byte) uint16 {
-	sum := uint32(0)
+	if len(data)%2 == 1 {
+		data = append(data, 0x00)
+	}
 
+	sum := uint32(0)
 	// creating 16 bit words
 	for i := 0; i < len(data)-1; i += 2 {
 		word := uint32(data[i])<<8 | uint32(data[i+1])
 		sum += word
-	}
-	if len(data)%2 == 1 { // validate this, might require padding
-		sum += uint32(data[len(data)-1])
 	}
 
 	// adding carry bits with lower 16 bits
