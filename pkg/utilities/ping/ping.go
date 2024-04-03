@@ -66,6 +66,7 @@ func (pinger *Pinger) Ping(host string) error {
 			0,
 			0,
 			seqNo,
+			nil,
 		)
 		if err != nil {
 			return errors.Wrapf(err, "error creating ICMP packet")

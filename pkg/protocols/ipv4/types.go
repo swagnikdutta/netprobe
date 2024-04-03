@@ -15,9 +15,10 @@ type Header struct {
 	FragmentOffset uint16
 	TTL            uint8
 	Protocol       uint8
-	Checksum       uint16
-	SourceIP       net.IP
-	DestinationIP  net.IP
+	// In IPv4, checksum is calculated only on the header
+	Checksum      uint16
+	SourceIP      net.IP
+	DestinationIP net.IP
 }
 
 // Packet represents an IPv4 packet.
