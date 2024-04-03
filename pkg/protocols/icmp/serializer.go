@@ -17,12 +17,12 @@ func (h *Header) Serialize() ([]byte, error) {
 
 func (p *Packet) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	buf.Write(p.Payload)
 	headerSerialized, err := p.Header.Serialize()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error serializing ICMP packet header")
 	}
 	buf.Write(headerSerialized)
+	buf.Write(p.Payload)
 
 	return buf.Bytes(), nil
 }
