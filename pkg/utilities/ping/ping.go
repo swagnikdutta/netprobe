@@ -43,6 +43,29 @@ func (pinger *Pinger) parseEchoReply(echoReply []byte, echoRequest *ipv4.Packet)
 	fmt.Printf("received ICMP echo packet from %v, seq no: %v\n\n", echoRequest.Header.DestinationIP, seqNo)
 }
 
+func (pinger *Pinger) sendPacket(host string, packet []byte) ([]byte, error) {
+	conn, err := pinger.dialer.Dial("ip4:icmp", pinger.destIP.String())
+	if err != nil {
+		return nil, errors.Wrapf(err, "error eshtablishing connection with %s", host)
+	}
+	defer conn.Close()
+
+	_, err = conn.Write(packet)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error sending ICMP echo request")
+	}
+
+	reply := make([]byte, 2048)
+
+	_, err = conn.Read(reply)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error receiving ICMP echo response")
+	}
+	reply = bytes.Trim(reply, "\x00")
+
+	return reply, nil
+}
+
 func (pinger *Pinger) Ping(host string) error {
 	ip, err := pinger.resolver.ResolveSource()
 	if err != nil {
@@ -72,41 +95,33 @@ func (pinger *Pinger) Ping(host string) error {
 			return errors.Wrapf(err, "error creating ICMP packet")
 		}
 
-		ipHeader := ipv4.Header{
-			Version:       Version,
-			IHL:           IHL,
-			TTL:           64,
-			Protocol:      ICMPProtocolNumber,
-			SourceIP:      pinger.sourceIP,
-			DestinationIP: pinger.destIP,
-		}
-		ipPacket, ipPacketSerialized, err := ipv4.CreatePacket(ipHeader, icmpSerialized)
+		ipPacket, ipSerialized, err := ipv4.CreatePacket(
+			Version,
+			IHL,
+			0,
+			0,
+			0,
+			0,
+			0,
+			64,
+			ICMPProtocolNumber,
+			0,
+			pinger.sourceIP,
+			pinger.destIP,
+			icmpSerialized,
+		)
 		if err != nil {
 			return errors.Wrapf(err, "error creating IPv4 packet")
 		}
 
-		conn, err := pinger.dialer.Dial("ip4:icmp", pinger.destIP.String())
-		if err != nil {
-			return errors.Wrapf(err, "error eshtablishing connection with %s", host)
-		}
-		defer conn.Close()
-
-		_, err = conn.Write(ipPacketSerialized)
-		if err != nil {
-			return errors.Wrapf(err, "error sending ICMP echo request")
-		}
-
-		fmt.Printf("sent ICMP echo request (%v bytes) from %v, to %v, seq_no: %v\n", ipPacket.Header.TotalLength,
-			ipPacket.Header.SourceIP, ipPacket.Header.DestinationIP, icmpPacket.Header.SequenceNumber)
-
-		echoReply := make([]byte, 2048)
-		_, err = conn.Read(echoReply)
-		if err != nil {
-			return errors.Wrapf(err, "error receiving ICMP echo response")
-		}
-
-		echoReply = bytes.Trim(echoReply, "\x00")
-		pinger.parseEchoReply(echoReply, ipPacket)
+		reply, err := pinger.sendPacket(host, ipSerialized)
+		fmt.Printf("sent ICMP echo request (%v bytes) from %v, to %v, seq_no: %v\n",
+			ipPacket.Header.TotalLength,
+			ipPacket.Header.SourceIP,
+			ipPacket.Header.DestinationIP,
+			icmpPacket.Header.SequenceNumber,
+		)
+		pinger.parseEchoReply(reply, ipPacket)
 	}
 
 	fmt.Println("Ping tests completed.")
