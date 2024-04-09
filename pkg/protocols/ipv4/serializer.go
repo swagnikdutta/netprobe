@@ -20,12 +20,13 @@ func (h *Header) Serialize() ([]byte, error) {
 
 func (p *Packet) Serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	buf.Write(p.Payload)
 	headerSerialized, err := p.Header.Serialize()
 	if err != nil {
 		return nil, errors.Wrapf(err, "error serializing IPv4 packet header")
 	}
+	buf.Write(p.Payload) // This feels wrong, but works
 	buf.Write(headerSerialized)
+	// buf.Write(p.Payload) // this feels right, but doesn't work
 
 	return buf.Bytes(), nil
 }

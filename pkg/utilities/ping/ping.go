@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	HeaderType         uint8 = 8
-	HeaderSubtype      uint8 = 0
+	ICMPType           uint8 = 8
+	ICMPCode           uint8 = 0
 	ICMPProtocolNumber uint8 = 1
 	Version            uint8 = 4
 	IHL                uint8 = 5
@@ -32,6 +32,10 @@ type Pinger struct {
 }
 
 func (pinger *Pinger) parseEchoReply(echoReply []byte, echoRequest *ipv4.Packet) {
+	if len(echoReply) == 0 {
+		fmt.Printf("Empty echo reply\n\n")
+		return
+	}
 	// echoReply represents a serialized IP packet where the initial 20 bytes constitute the IP header (hence icmpOffset: 20).
 	// Following the IP header are the bytes representing the IP payload, which, in this case, is the ICMP packet.
 	icmpOffset := 20
@@ -84,8 +88,8 @@ func (pinger *Pinger) Ping(host string) error {
 	for i := 0; i < int(pinger.count); i++ {
 		seqNo := uint16(i)
 		icmpPacket, icmpSerialized, err := icmp.CreatePacket(
-			HeaderType,
-			HeaderSubtype,
+			ICMPType,
+			ICMPCode,
 			0,
 			0,
 			seqNo,
@@ -115,10 +119,11 @@ func (pinger *Pinger) Ping(host string) error {
 		}
 
 		reply, err := pinger.sendPacket(host, ipSerialized)
-		fmt.Printf("sent ICMP echo request (%v bytes) from %v, to %v, seq_no: %v\n",
+		fmt.Printf("sent ICMP echo request (%v bytes) from %v, to %v, identifier: %v, seq_no: %v\n",
 			ipPacket.Header.TotalLength,
 			ipPacket.Header.SourceIP,
 			ipPacket.Header.DestinationIP,
+			icmpPacket.Header.Identifier,
 			icmpPacket.Header.SequenceNumber,
 		)
 		pinger.parseEchoReply(reply, ipPacket)
