@@ -3,6 +3,7 @@ package protocols
 import (
 	"bytes"
 	"encoding/binary"
+	"net"
 )
 
 func CalculateChecksum(data []byte) uint16 {
@@ -29,6 +30,14 @@ func CalculateChecksum(data []byte) uint16 {
 
 func WriteBinary(buf *bytes.Buffer, values ...interface{}) error {
 	for _, value := range values {
+		if ip, ok := value.(net.IP); ok {
+			octets := ip.To4()
+			if err := WriteBinary(buf, octets[0], octets[1], octets[2], octets[3]); err != nil {
+				return err
+			}
+			continue
+		}
+
 		if err := binary.Write(buf, binary.BigEndian, value); err != nil {
 			return err
 		}
