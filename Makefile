@@ -1,13 +1,14 @@
 BINARY_NAME=npctl
+BINARY_PATH=/opt/homebrew/bin/
 
 build:
-	/usr/local/go/bin/go build -o /usr/local/go/bin/${BINARY_NAME} github.com/swagnikdutta/netprobe/cmd #gosetup
+	go build -o ${BINARY_PATH}${BINARY_NAME} github.com/swagnikdutta/netprobe/cmd #gosetup
 
 run: build
-	/usr/local/go/bin/${BINARY_NAME} dig www.example.com
+	${BINARY_PATH}${BINARY_NAME} dig www.example.com
 
 test_ping:
-	/usr/local/go/bin/go test -count=1 ./pkg/ping
+	${BINARY_PATH}${BINARY_NAME} test -count=1 ./pkg/ping
 
 test:
 	make test_ping
